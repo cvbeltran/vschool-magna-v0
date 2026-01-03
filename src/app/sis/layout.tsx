@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +13,9 @@ import {
   MessageSquare,
   FileText,
   Settings,
-  User,
+  LogOut,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 
 const navigationItems = [
   { label: "Dashboard", href: "/sis", icon: LayoutDashboard },
@@ -28,15 +33,55 @@ export default function SISLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      // Skip session check for auth routes
+      if (pathname?.startsWith("/sis/auth")) {
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/sis/auth/login");
+      }
+    };
+
+    checkSession();
+  }, [router, pathname]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    await fetch("/sis/auth/logout", { method: "POST" });
+    router.push("/sis/auth/login");
+    router.refresh();
+  };
+
+  const isAuthRoute = pathname?.startsWith("/sis/auth");
+
+  // Render auth pages without shell
+  if (isAuthRoute) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Top Bar */}
       <header className="border-b bg-background">
         <div className="flex h-14 items-center justify-between px-4 md:px-6">
           <h1 className="text-lg font-semibold">vSchool · SIS</h1>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <User className="size-4" />
-            <span className="sr-only">User menu</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="gap-2"
+          >
+            <LogOut className="size-4" />
+            <span>Logout</span>
           </Button>
         </div>
       </header>
